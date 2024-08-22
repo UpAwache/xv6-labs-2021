@@ -51,6 +51,9 @@ exec(char *path, char **argv)
     uint64 sz1;
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz)) == 0)
       goto bad;
+    if(sz1 >= PLIC){
+      goto bad;
+    }
     sz = sz1;
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
@@ -97,6 +100,17 @@ exec(char *path, char **argv)
   if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)
     goto bad;
 
+  int j;
+  pte_t *pte, *kernelPte;
+  // shifang proc old kernel pagetable mapping
+  uvmunmap(p->kernelPageTable, 0, PGROUNDUP(oldsz)/PGSIZE, 0);
+  // copy the proc_pagetable mapping to proc_kernel_pagetable
+  for (j = 0; j < sz; j += PGSIZE){
+    pte = walk(pagetable, j, 0);
+    kernelPte = walk(p->kernelPageTable, j, 1);
+    *kernelPte = (*pte) & ~PTE_U;
+  }
+
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
@@ -116,6 +130,8 @@ exec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
+  if(p->pid==1)
+    vmprint(p->pagetable);
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:
