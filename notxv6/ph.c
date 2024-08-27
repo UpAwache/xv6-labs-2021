@@ -42,6 +42,7 @@ void put(int key, int value)
 {
   int i = key % NBUCKET;
   pthread_mutex_lock(&lock[i]);     // acquire lock
+  
   // is the key already present?
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
@@ -79,9 +80,9 @@ put_thread(void *xa)
   int b = NKEYS/nthread;
 
   for (int i = 0; i < b; i++) {
-  pthread_mutex_lock(&lock);
+    //pthread_mutex_lock(&lock[i]);
     put(keys[b*n + i], n);
-    pthread_mutex_unlock(&lock);
+    //pthread_mutex_unlock(&lock[i]);
   }
 
   return NULL;
